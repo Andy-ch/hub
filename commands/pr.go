@@ -16,6 +16,7 @@ var (
 		Usage: `
 pr list [-s <STATE>] [-h <HEAD>] [-b <BASE>] [-o <SORT_KEY> [-^]] [-f <FORMAT>] [-L <LIMIT>]
 pr checkout <PR-NUMBER> [<BRANCH>]
+pr info <PR-NUMBER>
 `,
 		Long: `Manage GitHub Pull Requests for the current repository.
 
@@ -26,6 +27,9 @@ pr checkout <PR-NUMBER> [<BRANCH>]
 
 	* _checkout_:
 		Check out the head of a pull request in a new branch.
+
+	* _info_:
+		Show info about given pull request.
 
 ## Options:
 
@@ -150,11 +154,17 @@ hub-issue(1), hub-pull-request(1), hub(1)
 		Run:  listPulls,
 		Long: cmdPr.Long,
 	}
+
+	cmdPrInfo = &Command{
+		Key: "info",
+		Run: prInfo,
+	}
 )
 
 func init() {
 	cmdPr.Use(cmdListPulls)
 	cmdPr.Use(cmdCheckoutPr)
+	cmdPr.Use(cmdPrInfo)
 	CmdRunner.Use(cmdPr)
 }
 
@@ -253,6 +263,33 @@ func checkoutPr(command *Command, args *Args) {
 	utils.Check(err)
 
 	args.Replace(args.Executable, "checkout", newArgs...)
+}
+
+func prInfo(command *Command, args *Args) {
+	localRepo, err := github.LocalRepo()
+	utils.Check(err)
+
+	project, err := localRepo.MainProject()
+	utils.Check(err)
+
+	gh := github.NewClient(project.Host)
+
+	args.NoForward()
+	words := args.Words()
+	if len(words) == 0 {
+		utils.Check(fmt.Errorf("Error: no pull request number given"))
+	}
+
+	prNumberString := words[0]
+	ui.Printf("Info on PR#%s\n", prNumberString)
+	pr, err := gh.PullRequest(project, prNumberString)
+	utils.Check(err)
+	flagPullRequestFormat := args.Flag.Value("--format")
+	if !args.Flag.HasReceived("--format") {
+		flagPullRequestFormat = "%pC%>(8)%i%Creset  %t%  l%n"
+	}
+	colorize := colorizeOutput(args.Flag.HasReceived("--color"), args.Flag.Value("--color"))
+	ui.Print(formatPullRequest(*pr, flagPullRequestFormat, colorize))
 }
 
 func formatPullRequest(pr github.PullRequest, format string, colorize bool) string {
