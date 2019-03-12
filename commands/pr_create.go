@@ -14,7 +14,7 @@ import (
 )
 
 var cmdPullRequest = &Command{
-	Run: pullRequest,
+	Run: createPr,
 	Usage: `
 pull-request [-focp] [-b <BASE>] [-h <HEAD>] [-r <REVIEWERS> ] [-a <ASSIGNEES>] [-M <MILESTONE>] [-l <LABELS>]
 pull-request -m <MESSAGE> [--edit]
@@ -116,7 +116,7 @@ func init() {
 	CmdRunner.Use(cmdPullRequest)
 }
 
-func pullRequest(cmd *Command, args *Args) {
+func createPr(cmd *Command, args *Args) {
 	localRepo, err := github.LocalRepo()
 	utils.Check(err)
 
