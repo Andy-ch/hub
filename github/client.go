@@ -548,6 +548,16 @@ type Comment struct {
 	Body      string    `json:"body"`
 	User      *User     `json:"user"`
 	CreatedAt time.Time `json:"created_at"`
+	ReviewId  int       `json:"pull_request_review_id"`
+	DiffHunk  string    `json:"diff_hunk"`
+}
+
+type Review struct {
+	Id        int       `json:"id"`
+	Body      string    `json:"body"`
+	User      *User     `json:"user"`
+	CreatedAt time.Time `json:"submitted_at"`
+	State     string    `json:"state"`
 }
 
 type Issue struct {
@@ -709,6 +719,38 @@ func (client *Client) FetchComments(project *Project, number string) (comments [
 
 	comments = []Comment{}
 	err = res.Unmarshal(&comments)
+	return
+}
+
+func (client *Client) FetchPRComments(project *Project, number string) (comments []Comment, err error) {
+	api, err := client.simpleApi()
+	if err != nil {
+		return
+	}
+
+	res, err := api.Get(fmt.Sprintf("repos/%s/%s/pulls/%s/comments", project.Owner, project.Name, number))
+	if err = checkStatus(200, "fetching comments for pull request", res, err); err != nil {
+		return nil, err
+	}
+
+	comments = []Comment{}
+	err = res.Unmarshal(&comments)
+	return
+}
+
+func (client *Client) FetchReviews(project *Project, number string) (reviews []Review, err error) {
+	api, err := client.simpleApi()
+	if err != nil {
+		return
+	}
+
+	res, err := api.Get(fmt.Sprintf("repos/%s/%s/pulls/%s/reviews", project.Owner, project.Name, number))
+	if err = checkStatus(200, "fetching reviews for pull request", res, err); err != nil {
+		return nil, err
+	}
+
+	reviews = []Review{}
+	err = res.Unmarshal(&reviews)
 	return
 }
 

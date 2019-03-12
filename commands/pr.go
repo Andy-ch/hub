@@ -120,8 +120,7 @@ pr info <PR-NUMBER>
 
 		%mI: merged date, ISO 8601 format
 
-		%n: newline
-
+		%n: newline 
 		%%: a literal %
 
 	--color[=<WHEN>]
@@ -281,15 +280,30 @@ func prInfo(command *Command, args *Args) {
 	}
 
 	prNumberString := words[0]
-	ui.Printf("Info on PR#%s\n", prNumberString)
 	pr, err := gh.PullRequest(project, prNumberString)
 	utils.Check(err)
 	flagPullRequestFormat := args.Flag.Value("--format")
 	if !args.Flag.HasReceived("--format") {
-		flagPullRequestFormat = "%pC%>(8)%i%Creset  %t%  l%n"
+		flagPullRequestFormat = "%pC%>(8)%i%Creset  %t%  l%nRequested reviewers: %rs%n%n%b%n"
 	}
 	colorize := colorizeOutput(args.Flag.HasReceived("--color"), args.Flag.Value("--color"))
 	ui.Print(formatPullRequest(*pr, flagPullRequestFormat, colorize))
+	comments, err := gh.FetchPRComments(project, prNumberString)
+	utils.Check(err)
+	reviewsToComments := make(map[int]int)
+	for i, comment := range comments {
+		reviewsToComments[comment.ReviewId] = i
+	}
+	reviews, err := gh.FetchReviews(project, prNumberString)
+	utils.Check(err)
+	for _, review := range reviews {
+		ui.Printf("%s %s on %s\n", review.User.Login, review.State, review.CreatedAt)
+		if review.State != "APPROVED" {
+			comment := comments[reviewsToComments[review.Id]]
+			ui.Printf("%s\n\n%s\n", comment.DiffHunk, comment.Body)
+		}
+		ui.Printf("\n")
+	}
 }
 
 func formatPullRequest(pr github.PullRequest, format string, colorize bool) string {
